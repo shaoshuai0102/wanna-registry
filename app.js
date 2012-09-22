@@ -30,7 +30,7 @@ app.configure('development', function(){
 
 app.get('/', routes.index);
 
-app.get('/:themename', routes.getTheme);
+app.get('/:themename/:version', routes.getTheme);
 
 app.put('/:themename/:version', routes.createTheme);
 
