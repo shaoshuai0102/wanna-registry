@@ -10,13 +10,37 @@ exports.index = function(req, res){
 };
 
 exports.getTheme = function(req, res) {
+    var themename = req.params.themename;
+
+    var _themes_dir_ = global.config['themes_dir'];
+    var path_theme = _themes_dir_ + '/' + themename;
+    switch (req.headers['accept']) {
+        case 'application/json':
+            if (!fs.existsSync(path_theme + '/theme.json')) {
+                res.send(404);
+                return;
+            }
+
+            var config = require(path_theme + '/theme.json');
+            res.json(config);
+            break;
+        default:
+            res.send(400, 'wrong Accept in http header. ' + req.headers['accept'] + ' not supported.');
+    }
+};
+
+exports.getThemeVersion = function(req, res) {
     var themename = req.params.themename,
         version = req.params.version;
 
     var _themes_dir_ = global.config['themes_dir'];
-    var path_theme = _themes_dir_ + '/' + themename + '/' + version;
 
-    console.log(path_theme);
+    if (version == 'latest') {
+        var c = require(_themes_dir_ + '/' + themename + '/theme.json');
+        version = c.versions.latest.version;
+    }
+
+    var path_theme = _themes_dir_ + '/' + themename + '/' + version;
 
     switch (req.headers['accept']) {
         case 'application/json':
@@ -32,7 +56,7 @@ exports.getTheme = function(req, res) {
             res.sendfile(path_theme + '/' + themename + '-' + version + '.tgz');
             break;
         default:
-            res.send(400, 'wrong content-type in header. ' + req.headers['content-type'] + ' not supported.');
+            res.send(400, 'wrong Accept in http header. ' + req.headers['accept'] + ' not supported.');
     }
 };
 
@@ -72,14 +96,29 @@ exports.createTheme = function(req, res) {
                     return;
                 }
 
-                console.log('upload success');
                 if (fs.existsSync(path_tmp + '/theme.json')) {
                     var config = require(path_tmp + '/theme.json');
                     config.tarball = 'http://registry.wannajs.org/' + themename + '/' + version + '/' + themename + '-' + version + '.tgz';
-                    console.log('config', config);
                     fs.writeFileSync(path_tmp + '/theme.json', JSON.stringify(config));
                     shell.mkdir('-p', path_theme);
-                    shell.cp('-R', path_tmp + '/*', path_theme);
+                    shell.cp('-Rf', path_tmp + '/*', path_theme);
+
+                    var theme_config_file = _themes_dir_ + '/' + themename + '/theme.json';
+
+                    if (fs.existsSync(theme_config_file))
+                        var theme_config = require(theme_config_file);
+                    else
+                        var theme_config = {};
+
+                    theme_config.name = themename;
+                    theme_config.versions = theme_config.versions || {};
+                    theme_config.versions[version] = config;
+
+                    if (!theme_config.versions['latest'] || compareVersion(theme_config.versions['latest'].version, version) == -1)  {
+                        theme_config.versions['latest'] = config;
+                    }
+
+                    fs.writeFileSync(theme_config_file, JSON.stringify(theme_config));
                     res.send(200);
                 } else {
                     res.send(400, 'send theme.json first please');
@@ -87,7 +126,40 @@ exports.createTheme = function(req, res) {
             });
             break;
         default:
-            res.send(400, 'wrong content-type in header. ' + req.headers['content-type'] + ' not supported.');
+            res.send(400, 'wrong content-type in http header. ' + req.headers['content-type'] + ' not supported.');
     }
 
 };
+
+
+function compareVersion(first, second) {
+    var versionToArray = function(str) {
+        var version = (str + '').split('.'),
+            length = version.length, i = 0;
+        for ( ; i < length; i++) {
+            version[i] = parseInt(version[i], 10);
+        }
+
+        return version;
+    }, length, i = 0, n1, n2;
+
+    first = versionToArray(first);
+    second = versionToArray(second);
+
+    // if arrays are equal - we have equal versions
+    if (first === second) {
+        return 0;
+    }
+
+    length = Math.max(first.length, second.length);
+
+    for ( ; i < length; i++) {
+        n1 = first[i] || 0;
+        n2 = second[i] || 0;
+        if (n1 === n2) {
+            continue;
+        }
+
+        return n1 - n2 > 0 ? 1 : -1;
+    }
+}

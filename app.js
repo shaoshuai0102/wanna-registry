@@ -10,7 +10,15 @@ var express = require('express'),
 
 var app = express();
 
-global.config = require(process.cwd() + '/config.json');
+
+app.configure('development', function(){
+    app.use(express.errorHandler());
+    global.config = require(process.cwd() + '/config.json')['development'];
+});
+
+app.configure('production', function() {
+    global.config = require(process.cwd() + '/config.json')['production'];
+});
 
 app.configure(function(){
     app.set('port', process.env.PORT || 3000);
@@ -24,17 +32,13 @@ app.configure(function(){
     app.use(express.static(path.join(__dirname, 'public')));
 });
 
-app.configure('development', function(){
-    app.use(express.errorHandler());
-});
-
 app.get('/', routes.index);
 
-app.get('/:themename/:version', routes.getTheme);
+app.get('/:themename', routes.getTheme);
+
+app.get('/:themename/:version', routes.getThemeVersion);
 
 app.put('/:themename/:version', routes.createTheme);
-
-//app.get('/:themename/:version', routes.getThemeVersion);
 
 http.createServer(app).listen(app.get('port'), function(){
     console.log("Express server listening on port " + app.get('port'));

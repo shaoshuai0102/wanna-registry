@@ -1,4 +1,10 @@
 {
-    "themes_dir": "/Users/shawn/themes",
-    "tmp_dir": "/Users/shawn/tmp"
+    "development": {
+        "themes_dir": "/Users/shawn/themes",
+        "tmp_dir": "/Users/shawn/tmp"
+    },
+    "production": {
+        "themes_dir": "/var/www/themes",
+        "tmp_dir": "/tmp"
+    }
 }
