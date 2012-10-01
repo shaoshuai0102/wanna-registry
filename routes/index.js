@@ -36,24 +36,31 @@ exports.getThemeVersion = function(req, res) {
     var _themes_dir_ = global.config['themes_dir'];
 
     if (version == 'latest') {
-        var c = require(_themes_dir_ + '/' + themename + '/theme.json');
+        var theme_json_file = _themes_dir_ + '/' + themename + '/theme.json';
+        if (!fs.existsSync(theme_json_file)) {
+            res.send(404);
+            return;
+        }
+        var c = require(theme_json_file);
         version = c.versions.latest.version;
     }
 
     var path_theme = _themes_dir_ + '/' + themename + '/' + version;
 
+    if (!fs.existsSync(path_theme)) {
+        res.send(404);
+        return;
+    }
+
     switch (req.headers['accept']) {
         case 'application/json':
-            if (!fs.existsSync(path_theme + '/theme.json')) {
-                res.send(404);
-                return;
-            }
-
-            var config = require(path_theme + '/theme.json');
+            var file = path_theme + '/theme.json';
+            var config = require(file);
             res.json(config);
             break;
         case 'application/x-tar-gz':
-            res.sendfile(path_theme + '/' + themename + '-' + version + '.tgz');
+            var file = path_theme + '/' + themename + '-' + version + '.tgz'
+            res.sendfile(file);
             break;
         default:
             res.send(400, 'wrong Accept in http header. ' + req.headers['accept'] + ' not supported.');
